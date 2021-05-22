@@ -1,0 +1,57 @@
+---
+title: "Pitch Framing"
+author: "Matt Goard"
+date: "5/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load Packages
+
+```{r packages}
+library(tidyverse)
+library(moderndive)
+library(broom)
+library(infer)
+```
+
+## Load Data
+
+```{r data}
+master <- read.csv("2020-2021.csv")
+head(master)
+```
+
+## App Pitching
+
+```{r App}
+AppPitching <- master %>% 
+  filter(PitcherTeam == "APP_MOU" | PitcherTeam == "APP_PRA")
+```
+
+## Pitch Called
+
+```{r Pitches Called}
+AppPitching <- AppPitching %>% 
+  filter(PitchCall == "StrikeCalled" | PitchCall == "BallCalled")
+```
+
+## Catcher Tables
+
+```{r catchers}
+Cross <- AppPitching %>% 
+  filter(Catcher == "Cross, Hayden")
+
+Lipson <- AppPitching %>% 
+  filter(Catcher == "Lipson, Jack")
+
+Arnold <- AppPitching %>% 
+  filter(Catcher == "Arnold, Carson")
+
+Lewis <- AppPitching %>% 
+  filter(Catcher == "Lewis, Trent")
+```
+

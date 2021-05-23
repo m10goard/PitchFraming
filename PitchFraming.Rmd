@@ -20,6 +20,11 @@ library(caret)
 library(moments)
 library(HistData)
 library(kableExtra)
+library(gridExtra)
+library(plotly)
+library(scales)
+library(utils)
+library(stringr)
 ```
 
 ## Load Data
@@ -264,12 +269,357 @@ visualize(YakBoot, dens_color = "BLACK") +
 All graphs are approximately symmetric meaning they are valid (skew between -.5 and .5). Lipson is most symmetric and has least outliers as kurt is low. Cross also doesn't have many outliers, and Arnold has more outliers than Cross.
 
 
+```{r Strike Zone/Home Plate/Batter/Text Mapping}
+x <- c(-.95,.95,.95,-.95,-.95)
+y <- c(1.6,1.6,3.5,3.5,1.6)
+sz <- data_frame(x, y)
 
+x1 <- c(-.95, -.95, 0, .95, .95, -.95)
+y1 <- c(0, .15, .25, .15, 0, 0)
+hp <- data_frame(x1, y1)
 
+x2 <- c(1.61, 3.11, 3.11, 1.61, 1.61)
+y2 <- c(0, 0, 5.5, 5.5, 0)
+rhb <- data_frame(x2, y2)
 
+x3 <- c(-1.61, -3.11, -3.11, -1.61, -1.61)
+y3 <- c(0, 0, 5.5, 5.5, 0)
+lhb <- data_frame(x3, y3)
 
+x4 <- c(-.95, .95, .95, -.95)
+y4 <- c(2.233, 2.233, 2.866, 2.866)
+szv <- data_frame(x4, y4)
 
+x5 <- c(-0.316, -0.316, 0.316, 0.316)
+y5 <- c(1.6, 3.5, 3.5, 1.6)
+szh <- data_frame(x5, y5)
 
+x6 <- c(0, 0, 1.267, 1.267, .95, 1.267, 1.267, 0, 0, 0, -1.267, -1.267, -.95, -1.267, -1.267, 0)
+y6 <- c(3.5, 3.817, 3.817, 2.55, 2.55, 2.55, 1.283, 1.283, 1.6, 1.283, 1.283, 2.55, 2.55, 2.55, 3.817, 3.817)
+bllz <- data_frame(x6, y6)
+```
 
+## Interactive graphs
 
+```{r BallsFramedAsStrikes}
+CrossBallsFramedL <- Cross %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Left")
+CrossBallsFramedR <- Cross %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Right")
 
+ArnoldBallsFramedL <- Arnold %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Left")
+ArnoldBallsFramedR <- Arnold %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Right")
+
+LipsonBallsFramedL <- Lipson %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Left")
+LipsonBallsFramedR <- Lipson %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Right")
+
+LewisBallsFramedL <- Lewis %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Left")
+LewisBallsFramedR <- Lewis %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Right")
+
+YakBallsFramedL <- Yakubinis %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Left")
+YakBallsFramedR <- Yakubinis %>% 
+  filter(PlateLocHeight > 3.410 | PlateLocHeight < 1.745 |
+         PlateLocSide > .70833 | PlateLocSide < -.700833,
+         PitchCall == "StrikeCalled",
+         PitcherThrows == "Right")
+```
+
+## Point Graphics
+
+```{r graphs}
+CrossGraphL <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Cross' Stolen Pitches For Left Handed Pitchers") +
+  geom_point(data = CrossBallsFramedL, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(CrossGraphL, tootip = "text"), dragmode = "pan")
+
+CrossGraphR <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Cross' Stolen Pitches For Right Handed Pitchers") +
+  geom_point(data = CrossBallsFramedR, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(CrossGraphR, tootip = "text"), dragmode = "pan")
+```
+
+```{r}
+ArnoldGraphL <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Arnold's Stolen Pitches For Left Handed Pitchers") +
+  geom_point(data = ArnoldBallsFramedL, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(ArnoldGraphL, tootip = "text"), dragmode = "pan")
+
+ArnoldGraphR <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Arnold's Stolen Pitches For Right Handed Pitchers") +
+  geom_point(data = ArnoldBallsFramedR, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(ArnoldGraphR, tootip = "text"), dragmode = "pan")
+```
+
+```{r}
+LipsonGraphL <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Lipson's Stolen Pitches For Left Handed Pitchers") +
+  geom_point(data = LipsonBallsFramedL, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(LipsonGraphL, tootip = "text"), dragmode = "pan")
+
+LipsonGraphR <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Lipson's Stolen Pitches For Right Handed Pitchers") +
+  geom_point(data = LipsonBallsFramedR, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(LipsonGraphR, tootip = "text"), dragmode = "pan")
+```
+
+```{r}
+# Lewis did not steal any strikes for lefties
+
+LewisGraphR <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Lewis' Stolen Pitches For Right Handed Pitchers") +
+  geom_point(data = LewisBallsFramedR, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(LewisGraphR, tootip = "text"), dragmode = "pan")
+```
+
+```{r}
+YakGraphL <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Yakubinis' Stolen Pitches For Left Handed Pitchers") +
+  geom_point(data = YakBallsFramedL, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(YakGraphL, tootip = "text"), dragmode = "pan")
+
+YakGraphR <- ggplot() +
+  geom_path(data = sz, aes(x = x, y = y)) +
+  geom_polygon(hp, mapping = aes(x = x1, y = y1), color = "black", fill = "white") +
+  geom_path(data = rhb, aes(x = x2, y = y2), color = "lightgray") +
+  geom_path(data = lhb, aes(x = x3, y = y3), color = "lightgray") +
+  geom_text(mapping = aes(x = 2.36, y = 2.75), label = paste("RHB"), color = "lightgray") +
+  geom_text(mapping = aes(x = -2.36, y = 2.75), label = paste("LHB"), color = "lightgray") +
+  coord_equal() +
+  xlab("Plate Width") +
+  ylab("Plate Height") +
+  ggtitle("Yakubinis' Stolen Pitches For Right Handed Pitchers") +
+  geom_point(data = YakBallsFramedR, aes(x = PlateLocSide, y = PlateLocHeight, color = CatcherStance, text = paste("Pitch Type: ", TaggedPitchType, "<br>Batter Side: ", BatterSide, "<br> Pitcher Set:", PitcherSet))) +
+  scale_color_manual(breaks = c("R" ,"L", "P"), values = c("gold", "black", "dark grey")) +
+  coord_cartesian(xlim = c(-4.5, 4.5), ylim = c(0, 5.5)) +
+  theme(axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      plot.background = element_blank(),
+      legend.title = element_blank())
+layout(ggplotly(YakGraphR, tootip = "text"), dragmode = "pan")
+```

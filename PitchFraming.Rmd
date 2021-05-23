@@ -16,13 +16,16 @@ library(tidyverse)
 library(moderndive)
 library(broom)
 library(infer)
+library(caret)
+library(moments)
+library(HistData)
+library(kableExtra)
 ```
 
 ## Load Data
 
 ```{r data}
-master <- read.csv("2020-2021.csv")
-head(master)
+master <- data.table::fread("2020-2021.csv")
 ```
 
 ## App Pitching
@@ -39,6 +42,22 @@ AppPitching <- AppPitching %>%
   filter(PitchCall == "StrikeCalled" | PitchCall == "BallCalled")
 ```
 
+## Create Frames
+
+```{r frames}
+AppPitching <- AppPitching %>% 
+  mutate(Frame = case_when(
+    PlateLocSide > .5417 | PlateLocSide < -.5417 & PitchCall == "StrikeCalled" ~ "Framed",
+    PlateLocHeight > 3.243 | PlateLocHeight < 1.9117 & PitchCall == "StrikeCalled" ~ "Framed",
+    PlateLocSide < .5417 & PlateLocSide > -.5417 & PlateLocHeight < 3.243 & PlateLocHeight > 1.9117 ~ "Strike",
+    TRUE ~ "Ball"
+  ))
+
+AppPitching <- AppPitching %>% 
+  select(Date, PitcherTeam, PitcherThrows, PitcherSet, BatterSide, Balls, Strikes, PitchCall, TaggedPitchType, Catcher, CatcherStance, Frame, PlateLocHeight, PlateLocSide) %>% 
+  na.omit()
+```
+
 ## Catcher Tables
 
 ```{r catchers}
@@ -53,5 +72,204 @@ Arnold <- AppPitching %>%
 
 Lewis <- AppPitching %>% 
   filter(Catcher == "Lewis, Trent")
+
+Yakubinis <- AppPitching %>% 
+  filter(Catcher == "Yakubinis, JD")
 ```
+
+## Splits
+```{r splits}
+set.seed(500)
+rows <- sample(nrow(AppPitching))
+App <- AppPitching[rows, ]
+split <- round(nrow(App)*0.70)
+train <- App[1:split, ]
+test <- App[(split + 1):nrow(App), ]
+```
+
+## My Control
+
+```{r Control}
+myControl <- trainControl(
+  method = "cv", 
+  number = 5)
+```
+
+## Random Forest
+
+```{r RF}
+rforest <- train(
+  PitchCall ~ . - Date - PitcherTeam,
+  tuneLength = 5,
+  data = train, 
+  method = "ranger",
+  trControl = myControl)
+rforest$finalModel
+```
+
+## GLMnet
+
+```{r GLM}
+GLMnetmod <- train(
+  PitchCall ~ . - Date - PitcherTeam,
+  data = train, 
+  method = "glm",
+  trControl = myControl)
+print(GLMnetmod)
+```
+
+## Which Model is best?
+```{r mod comparison}
+ANS <- resamples(list(RF = rforest, GLM = GLMnetmod))
+dotplot(ANS, scales = "free", layout = c(1, 3))
+bwplot(ANS, layout = c(1, 3), scales = "free", as.table = TRUE)
+```
+
+## Proportion of Framed Strikes
+
+```{r prop}
+Cross2 <- Cross %>% 
+  filter(Frame == "Framed" | Frame == "Ball")
+(Cross3 <- Cross2 %>% 
+  summarize(FramedPitches = sum(Frame == "Framed"),
+            prop          = FramedPitches/nrow(Cross2)))
+
+Arnold2 <- Arnold %>% 
+  filter(Frame == "Framed" | Frame == "Ball")
+(Arnold3 <- Arnold2 %>% 
+  summarize(FramedPitches = sum(Frame == "Framed"),
+            prop          = FramedPitches/nrow(Arnold2)))
+
+Lipson2 <- Lipson %>% 
+  filter(Frame == "Framed" | Frame == "Ball")
+(Lipson3 <- Lipson2 %>% 
+  summarize(FramedPitches = sum(Frame == "Framed"),
+            prop          = FramedPitches/nrow(Lipson2)))
+
+Lewis2 <- Lewis %>% 
+  filter(Frame == "Framed" | Frame == "Ball")
+(Lewis3 <- Lewis2 %>% 
+  summarize(FramedPitches = sum(Frame == "Framed"),
+            prop          = FramedPitches/nrow(Lewis2)))
+
+Yak2 <- Yakubinis %>% 
+  filter(Frame == "Framed" | Frame == "Ball")
+(Yak3 <- Yak2 %>% 
+  summarize(FramedPitches = sum(Frame == "Framed"),
+            prop          = FramedPitches/nrow(Yak2)))
+```
+
+## Bootstraps
+
+Over 50 seasons, how many strikes are called per catcher?
+
+```{r bootstraps}
+CrossBoot <- Cross %>% 
+  specify(response = PitchCall, success = "StrikeCalled") %>% 
+  generate(reps = 50, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+ArnoldBoot <- Arnold %>% 
+  specify(response = PitchCall, success = "StrikeCalled") %>% 
+  generate(reps = 50, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+LipsonBoot <- Lipson %>% 
+  specify(response = PitchCall, success = "StrikeCalled") %>% 
+  generate(reps = 50, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+LewisBoot <- Lewis %>% 
+  specify(response = PitchCall, success = "StrikeCalled") %>% 
+  generate(reps = 50, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+
+YakBoot <- Yakubinis %>% 
+  specify(response = PitchCall, success = "StrikeCalled") %>% 
+  generate(reps = 50, type = "bootstrap") %>% 
+  calculate(stat = "prop")
+```
+
+## Bootstrap Comp
+
+```{r boot comp}
+percentile_ci_Cross <- CrossBoot %>% 
+  get_confidence_interval(level = .95, type = "percentile")
+percentile_ci_Arnold <- ArnoldBoot %>% 
+  get_confidence_interval(level = .95, type = "percentile")
+percentile_ci_Lipson <- LipsonBoot %>% 
+  get_confidence_interval(level = .95, type = "percentile")
+percentile_ci_Lewis <- LewisBoot %>% 
+  get_confidence_interval(level = .95, type = "percentile")
+percentile_ci_Yak <- YakBoot %>% 
+  get_confidence_interval(level = .95, type = "percentile")
+
+visualize(CrossBoot, dens_color = "BLACK") +
+  shade_confidence_interval(endpoints = percentile_ci_Cross, color = "gold", fill = "gold") +
+  labs(title = "Cross' Bootstrap Distribution for Proportion of Framed Pitches",
+       x = "Proportion of Framed Pitches",
+       y = "Count",
+       caption = "Estimated for 50 seasons with 95% confidence") +
+  theme_linedraw()
+
+visualize(ArnoldBoot, dens_color = "BLACK") +
+  shade_confidence_interval(endpoints = percentile_ci_Arnold, color = "gold", fill = "gold") +
+  labs(title = "Arnold's Bootstrap Distribution for Proportion of Framed Pitches",
+       x = "Proportion of Framed Pitches",
+       y = "Count",
+       caption = "Estimated for 50 seasons with 95% confidence") +
+  theme_linedraw()
+
+visualize(LipsonBoot, dens_color = "BLACK") +
+  shade_confidence_interval(endpoints = percentile_ci_Lipson, color = "gold", fill = "gold") +
+  labs(title = "Lipson's Bootstrap Distribution for Proportion of Framed Pitches",
+       x = "Proportion of Framed Pitches",
+       y = "Count",
+       caption = "Estimated for 50 seasons with 95% confidence") +
+  theme_linedraw()
+
+visualize(LewisBoot, dens_color = "BLACK") +
+  shade_confidence_interval(endpoints = percentile_ci_Lewis, color = "gold", fill = "gold") +
+  labs(title = "Lewis' Bootstrap Distribution for Proportion of Framed Pitches",
+       x = "Proportion of Framed Pitches",
+       y = "Count",
+       caption = "Estimated for 50 seasons with 95% confidence") +
+  theme_linedraw()
+
+visualize(YakBoot, dens_color = "BLACK") +
+  shade_confidence_interval(endpoints = percentile_ci_Yak, color = "gold", fill = "gold") +
+  labs(title = "Yakubinis' Bootstrap Distribution for Proportion of Framed Pitches",
+       x = "Proportion of Framed Pitches",
+       y = "Count",
+       caption = "Estimated for 50 seasons with 95% confidence") +
+  theme_linedraw()
+
+(CrossSummaries <- CrossBoot %>% 
+  summarize(skew = skewness(stat),
+            kurt = kurtosis(stat)))
+(ArnoldSummaries <- ArnoldBoot %>% 
+  summarize(skew = skewness(stat),
+            kurt = kurtosis(stat)))
+(LipsonSummaries <- LipsonBoot %>% 
+  summarize(skew = skewness(stat),
+            kurt = kurtosis(stat)))
+(LewisSummaries <- LewisBoot %>% 
+  summarize(skew = skewness(stat),
+            kurt = kurtosis(stat)))
+(YakSummaries <- YakBoot %>% 
+  summarize(skew = skewness(stat),
+            kurt = kurtosis(stat)))
+```
+
+All graphs are approximately symmetric meaning they are valid (skew between -.5 and .5). Lipson is most symmetric and has least outliers as kurt is low. Cross also doesn't have many outliers, and Arnold has more outliers than Cross.
+
+
+
+
+
+
+
+
+
+
 
